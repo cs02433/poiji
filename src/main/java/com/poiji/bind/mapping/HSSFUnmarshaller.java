@@ -4,7 +4,7 @@ import com.poiji.annotation.ExcelCell;
 import com.poiji.annotation.ExcelCellName;
 import com.poiji.annotation.ExcelRow;
 import com.poiji.bind.Unmarshaller;
-import com.poiji.exception.IllegalCastException;
+import com.poiji.bind.mapping.field.PoijiFieldUnmarshaller;
 import com.poiji.exception.PoijiInstantiationException;
 import com.poiji.option.PoijiOptions;
 import com.poiji.util.Casting;
@@ -27,7 +27,7 @@ import static java.lang.String.valueOf;
  * This is the main class that converts the excel sheet fromExcel Java object
  * Created by hakan on 16/01/2017.
  */
-abstract class HSSFUnmarshaller implements Unmarshaller {
+abstract class HSSFUnmarshaller implements Unmarshaller, PoijiFieldUnmarshaller {
 
     private final DataFormatter dataFormatter;
     protected final PoijiOptions options;
@@ -37,7 +37,7 @@ abstract class HSSFUnmarshaller implements Unmarshaller {
     HSSFUnmarshaller(PoijiOptions options) {
         this.options = options;
         dataFormatter = new DataFormatter();
-        titles = new HashMap<String, Integer>();
+        titles = new HashMap<>();
         casting = Casting.getInstance();
     }
 
@@ -85,7 +85,7 @@ abstract class HSSFUnmarshaller implements Unmarshaller {
             if (excelRow != null) {
                 Object o;
                 o = casting.castValue(field.getType(), valueOf(currentRow.getRowNum()), options);
-                setFieldData(instance, field, o);
+                setFieldData(field, o, instance);
             }
             ExcelCell index = field.getAnnotation(ExcelCell.class);
             if (index != null) {
@@ -112,18 +112,11 @@ abstract class HSSFUnmarshaller implements Unmarshaller {
         if (cell != null) {
             String value = dataFormatter.formatCellValue(cell);
             Object o = casting.castValue(fieldType, value, options);
-            setFieldData(instance, field, o);
+            setFieldData(field, o, instance);
         }
     }
 
-    private <T> void setFieldData(T instance, Field field, Object o) {
-        try {
-            field.setAccessible(true);
-            field.set(instance, o);
-        } catch (IllegalAccessException e) {
-            throw new IllegalCastException("Unexpected cast type {" + o + "} of field" + field.getName());
-        }
-    }
+
 
     private <T> T setFieldValue(Row currentRow, Class<? super T> subclass, T instance) {
         return subclass == null

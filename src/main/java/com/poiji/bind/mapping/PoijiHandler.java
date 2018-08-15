@@ -3,14 +3,13 @@ package com.poiji.bind.mapping;
 import com.poiji.annotation.ExcelCell;
 import com.poiji.annotation.ExcelCellName;
 import com.poiji.annotation.ExcelRow;
-import com.poiji.exception.IllegalCastException;
+import com.poiji.bind.mapping.field.PoijiFieldUnmarshaller;
 import com.poiji.option.PoijiOptions;
 import com.poiji.util.Casting;
 import org.apache.poi.ss.util.CellAddress;
 import org.apache.poi.xssf.usermodel.XSSFComment;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -24,7 +23,7 @@ import static org.apache.poi.xssf.eventusermodel.XSSFSheetXMLHandler.SheetConten
  * <p>
  * Created by hakan on 22/10/2017
  */
-final class PoijiHandler<T> implements SheetContentsHandler {
+final class PoijiHandler<T> implements SheetContentsHandler, PoijiFieldUnmarshaller {
 
     private T instance;
     private Consumer<? super T> consumer;
@@ -42,19 +41,10 @@ final class PoijiHandler<T> implements SheetContentsHandler {
         this.consumer = consumer;
 
         casting = Casting.getInstance();
-        titles = new HashMap<String, Integer>();
+        titles = new HashMap<>();
     }
 
-    private <T> T newInstanceOf(Class<T> type) {
-        T newInstance;
-        try {
-            newInstance = type.getDeclaredConstructor().newInstance();
-        } catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException | InstantiationException e) {
-            throw new IllegalCastException("Cannot create a new instance of " + type.getName());
-        }
 
-        return newInstance;
-    }
 
     private void setFieldValue(String content, Class<? super T> subclass, int column) {
         if (subclass != Object.class) {
@@ -69,7 +59,7 @@ final class PoijiHandler<T> implements SheetContentsHandler {
             ExcelRow excelRow = field.getAnnotation(ExcelRow.class);
             if (excelRow != null) {
                 Object o = casting.castValue(field.getType(), valueOf(internalCount), options);
-                setFieldData(field, o);
+                setFieldData(field, o, instance);
             }
             ExcelCell index = field.getAnnotation(ExcelCell.class);
             if (index != null) {
@@ -78,7 +68,7 @@ final class PoijiHandler<T> implements SheetContentsHandler {
                 if (column == index.value()) {
                     Object o = casting.castValue(fieldType, content, options);
 
-                    setFieldData(field, o);
+                    setFieldData(field, o, instance);
                 }
 
             } else {
@@ -91,26 +81,17 @@ final class PoijiHandler<T> implements SheetContentsHandler {
 
                         Object o = casting.castValue(fieldType, content, options);
 
-                        setFieldData(field, o);
+                        setFieldData(field, o, instance);
                     }
                 }
             }
         }
     }
 
-    private void setFieldData(Field field, Object o) {
-        try {
-            field.setAccessible(true);
-            field.set(instance, o);
-        } catch (IllegalAccessException e) {
-            throw new IllegalCastException("Unexpected cast type {" + o + "} of field" + field.getName());
-        }
-    }
-
     @Override
     public void startRow(int rowNum) {
         if (rowNum + 1 > options.skip()) {
-            instance = newInstanceOf(type);
+            instance = Casting.getInstance().newInstanceOf(type);
         }
     }
 

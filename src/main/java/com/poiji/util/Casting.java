@@ -1,7 +1,9 @@
 package com.poiji.util;
 
+import com.poiji.exception.IllegalCastException;
 import com.poiji.option.PoijiOptions;
 
+import java.lang.reflect.InvocationTargetException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
@@ -21,7 +23,19 @@ public final class Casting {
         return instance;
     }
 
+
     private Casting() {
+    }
+
+    public  <T> T newInstanceOf(Class<T> type) {
+        T newInstance;
+        try {
+            newInstance = type.getDeclaredConstructor().newInstance();
+        } catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException | InstantiationException e) {
+            throw new IllegalCastException("Cannot create a new instance of " + type.getName());
+        }
+
+        return newInstance;
     }
 
     private int primitiveIntegerValue(String value) {
